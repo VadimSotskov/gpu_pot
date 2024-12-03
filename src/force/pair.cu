@@ -5,13 +5,22 @@
 #include <cstring>
 #define BLOCK_SIZE_FORCE 64
 
-PairPot::PairPot(FILE*, char*, int num_types, const int number_of_atoms, int basis_size, double min_val, double max_val, int n_species) : r_cut(max_val)
+PairPot::PairPot(FILE*, char*, int num_types, const int number_of_atoms, int basis_size, double min_val, double max_val, int n_species)
 
 {
+    r_cut = max_val;
     p_Basis = new BasisChebyshev(basis_size, min_val, max_val, n_species);
+    pp_data.NN.resize(number_of_atoms);
+    pp_data.NL.resize(number_of_atoms * 400); // very safe for EAM
+    pp_data.cell_count.resize(number_of_atoms);
+    pp_data.cell_count_sum.resize(number_of_atoms);
+    pp_data.cell_contents.resize(number_of_atoms);
 }
 
-static __global__ void calc_efs( 
+static __global__ void calc_efs(
+  AnyBasis* p_Basis,
+  std::vector<double> rad_coeffs,
+  double r_cut, 
   const int N,
   const int N1,
   const int N2,
@@ -24,7 +33,8 @@ static __global__ void calc_efs(
   const double* __restrict__ g_z,
   double* g_fx,
   double* g_fy,
-  double* g_fz
+  double* g_fz,
+  double* g_virial,
   double* g_pe)
 
 {
@@ -65,19 +75,19 @@ static __global__ void calc_efs(
             for (int i = 0; i < p_Basis->size; ++i) {
                 int pair_idx = i + type2 * p_Basis->size + type1 * p_Basis->size * p_Basis->n_species;
                 f12x += 0.5 * rad_coeffs[pair_idx] * (p_Basis->getDer(i)*pow((r_cut - x12), 2) + p_Basis->getVal(i) * (r_cut*r_cut - 
-                2*r_cut - 2*x12))
+                2*r_cut - 2*x12));
             }
             p_Basis->CalcDers(y12);
             for (int i = 0; i < p_Basis->size; ++i) {
                 int pair_idx = i + type2 * p_Basis->size + type1 * p_Basis->size * p_Basis->n_species;
                 f12y += 0.5 * rad_coeffs[pair_idx] * (p_Basis->getDer(i)*pow((r_cut - y12), 2) + p_Basis->getVal(i) * (r_cut*r_cut - 
-                2*r_cut - 2*y12))
+                2*r_cut - 2*y12));
             }
             p_Basis->CalcDers(z12);
             for (int i = 0; i < p_Basis->size; ++i) {
                 int pair_idx = i + type2 * p_Basis->size + type1 * p_Basis->size * p_Basis->n_species;
                 f12y += 0.5 * rad_coeffs[pair_idx] * (p_Basis->getDer(i)*pow((r_cut - z12), 2) + p_Basis->getVal(i) * (r_cut*r_cut - 
-                2*r_cut - 2*z12))
+                2*r_cut - 2*z12));
             }
             s_fx += f12x;
             s_fy += f12y;
@@ -118,24 +128,26 @@ void PairPot::compute(
         box,
         type,
         position_per_atom,
-        eam_data.cell_count,
-        eam_data.cell_count_sum,
-        eam_data.cell_contents,
-        eam_data.NN,
-        eam_data.NL);
+        pp_data.cell_count,
+        pp_data.cell_count_sum,
+        pp_data.cell_contents,
+        pp_data.NN,
+        pp_data.NL);
 #ifdef USE_FIXED_NEIGHBOR
   }
 #endif
 
-    calc_efs<0><<<grid_size, BLOCK_SIZE_FORCE>>>(
+    calc_efs<<<grid_size, BLOCK_SIZE_FORCE>>>(
+      p_Basis,
+      rad_coeffs,
+      r_cut,
       number_of_atoms,
       N1,
       N2,
       box,
-      eam_data.NN.data(),
-      eam_data.NL.data(),
+      pp_data.NN.data(),
+      pp_data.NL.data(),
       type.data(),
-      eam_data.Fp.data(),
       position_per_atom.data(),
       position_per_atom.data() + number_of_atoms,
       position_per_atom.data() + number_of_atoms * 2,

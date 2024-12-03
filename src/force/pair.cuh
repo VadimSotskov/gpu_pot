@@ -4,14 +4,21 @@
 #include "utilities/gpu_vector.cuh"
 #include <stdio.h>
 
+struct PairPot_Data {
+  GPU_Vector<int> NN, NL;
+  GPU_Vector<int> cell_count;
+  GPU_Vector<int> cell_count_sum;
+  GPU_Vector<int> cell_contents;
+};
+
 class PairPot : public Potential {
 public:
     using Potential::compute;
     AnyBasis* p_Basis = nullptr;
-    vector<double> rad_coeffs;
+    std::vector<double> rad_coeffs;
     double r_cut = 0;
-    PairPot(FILE*, char*, int num_types, const int number_of_atoms, int basis_size, double min_val, double max_val);
-    virtual ~Pair(void);
+    PairPot(FILE*, char*, int num_types, const int number_of_atoms, int basis_size, double min_val, double max_val, int n_species);
+    virtual ~PairPot(void);
     virtual void compute(
         Box& box,
         const GPU_Vector<int>& type,
@@ -21,4 +28,7 @@ public:
         GPU_Vector<double>& virial);
   //void initialize_eam2004zhou(FILE*, int num_types);
   //void initialize_eam2006dai(FILE*); 
-}
+protected:
+  int potential_model;
+  PairPot_Data pp_data;
+};
