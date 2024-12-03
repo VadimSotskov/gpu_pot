@@ -17,6 +17,43 @@ PairPot::PairPot(FILE*, char*, int num_types, const int number_of_atoms, int bas
     pp_data.cell_contents.resize(number_of_atoms);
 }
 
+static __device__ void calc_energy (
+  AnyBasis* p_Basis, 
+  double dist,
+  double r_cut, 
+  int type1, 
+  int type2,
+  std::vector<double> rad_coeffs,
+  double &en)
+
+{
+    p_Basis->Calc(dist);
+    for (int i = 0; i < p_Basis->size; ++i) {
+        int pair_idx = i + type2 * p_Basis->size + type1 * p_Basis->size * p_Basis->n_species;
+        en += 0.5 * rad_coeffs[pair_idx] * p_Basis->getVal(i) * pow((r_cut - dist), 2);
+    }
+
+}
+
+static __device__ void calc_force (
+  AnyBasis* p_Basis, 
+  double dist,
+  double r_cut, 
+  int type1, 
+  int type2,
+  std::vector<double> rad_coeffs,
+  double &f)
+
+{
+    p_Basis->CalcDers(dist);
+    for (int i = 0; i < p_Basis->size; ++i) {
+        int pair_idx = i + type2 * p_Basis->size + type1 * p_Basis->size * p_Basis->n_species;
+        f += 0.5 * rad_coeffs[pair_idx] * (p_Basis->getDer(i)*pow((r_cut - dist), 2) + p_Basis->getVal(i) * (r_cut*r_cut - 
+        2*r_cut - 2*dist));
+    }
+
+}
+
 static __global__ void calc_efs(
   AnyBasis* p_Basis,
   std::vector<double> rad_coeffs,
@@ -62,33 +99,14 @@ static __global__ void calc_efs(
             apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             double en = 0.0;
-            p_Basis->Calc(d12);
-            for (int i = 0; i < p_Basis->size; ++i) {
-                int pair_idx = i + type2 * p_Basis->size + type1 * p_Basis->size * p_Basis->n_species;
-                en += 0.5 * rad_coeffs[pair_idx] * p_Basis->getVal(i) * pow((r_cut - d12), 2);
-            }
-            en_sum += en;
             double f12x = 0;
             double f12y = 0;
             double f12z = 0;
-            p_Basis->CalcDers(x12);
-            for (int i = 0; i < p_Basis->size; ++i) {
-                int pair_idx = i + type2 * p_Basis->size + type1 * p_Basis->size * p_Basis->n_species;
-                f12x += 0.5 * rad_coeffs[pair_idx] * (p_Basis->getDer(i)*pow((r_cut - x12), 2) + p_Basis->getVal(i) * (r_cut*r_cut - 
-                2*r_cut - 2*x12));
-            }
-            p_Basis->CalcDers(y12);
-            for (int i = 0; i < p_Basis->size; ++i) {
-                int pair_idx = i + type2 * p_Basis->size + type1 * p_Basis->size * p_Basis->n_species;
-                f12y += 0.5 * rad_coeffs[pair_idx] * (p_Basis->getDer(i)*pow((r_cut - y12), 2) + p_Basis->getVal(i) * (r_cut*r_cut - 
-                2*r_cut - 2*y12));
-            }
-            p_Basis->CalcDers(z12);
-            for (int i = 0; i < p_Basis->size; ++i) {
-                int pair_idx = i + type2 * p_Basis->size + type1 * p_Basis->size * p_Basis->n_species;
-                f12y += 0.5 * rad_coeffs[pair_idx] * (p_Basis->getDer(i)*pow((r_cut - z12), 2) + p_Basis->getVal(i) * (r_cut*r_cut - 
-                2*r_cut - 2*z12));
-            }
+            calc_energy(p_Basis, d12, r_cut, type1, type2, rad_coeffs, en);
+            calc_force(p_Basis, x12, r_cut, type1, type2, rad_coeffs, f12x);
+            calc_force(p_Basis, x12, r_cut, type1, type2, rad_coeffs, f12y);
+            calc_force(p_Basis, x12, r_cut, type1, type2, rad_coeffs, f12z);
+            en_sum += en;
             s_fx += f12x;
             s_fy += f12y;
             s_fz += f12z;
