@@ -12,8 +12,8 @@ class AnyBasis {
         double max_val;
         double scaling = 1.0;
         AnyBasis(int size_, double min_val_, double max_val_, int n_species_);
-        virtual void Calc(double val);
-        virtual void CalcDers(double val_x);
+        virtual void Calc(double val) = 0;
+        virtual void CalcDers(double val_x) = 0;
         inline double getVal(int i) {return vals[i];}
         inline double getDer(int i) {return ders[i];}
         ~AnyBasis();
