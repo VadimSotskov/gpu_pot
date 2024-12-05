@@ -4,12 +4,19 @@
 
 AnyBasis::AnyBasis(int size_, double min_val_, double max_val_, int n_species_) : size(size_), min_val(min_val_), max_val(max_val_), 
     n_species(n_species_) {
+        vals = new double[size];
+        ders = new double[size];
         std::cout << "AnyBasis initialized" << std::endl;
-        vals.resize(size);
-        ders.resize(size);
-    }
+        //vals.resize(size);
+        //ders.resize(size);
+        
+}
+AnyBasis::~AnyBasis() {
+  delete[] vals;
+  delete[] ders;
+}
 
-__device__ void BasisChebyshev::Calc(double val) {
+void BasisChebyshev::Calc(double val) {
 
     double ksi = (2 * val - (min_val + max_val)) / (max_val - min_val);
 
@@ -21,7 +28,7 @@ __device__ void BasisChebyshev::Calc(double val) {
 
 }
 
-__device__ void BasisChebyshev::CalcDers(double val)
+void BasisChebyshev::CalcDers(double val)
 {
 
     BasisChebyshev::Calc(val);
