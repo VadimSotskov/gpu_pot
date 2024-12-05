@@ -66,23 +66,23 @@ PairPot::PairPot(FILE*, char*, int num_types, const int number_of_atoms, int bas
 
 // }
 
-// static __device__ void calc_energy (
-//   AnyBasis* p_Basis, 
-//   double dist,
-//   double r_cut, 
-//   int type1, 
-//   int type2,
-//   std::vector<double> rad_coeffs,
-//   double &en)
+static __device__ void calc_energy (
+  AnyBasis* p_Basis, 
+  double dist,
+  double r_cut, 
+  int type1, 
+  int type2,
+  double* rad_coeffs,
+  double &en)
 
-// {
-//     p_Basis->Calc(dist);
-//     for (int i = 0; i < p_Basis->size; ++i) {
-//         int pair_idx = i + type2 * p_Basis->size + type1 * p_Basis->size * p_Basis->n_species;
-//         en += 0.5 * rad_coeffs[pair_idx] * p_Basis->getVal(i) * pow((r_cut - dist), 2);
-//     }
+{
+    p_Basis->Calc(dist);
+    for (int i = 0; i < p_Basis->size; ++i) {
+        int pair_idx = i + type2 * p_Basis->size + type1 * p_Basis->size * p_Basis->n_species;
+        en += 0.5 * rad_coeffs[pair_idx] * p_Basis->getVal(i) * pow((r_cut - dist), 2);
+    }
 
-// }
+}
 
 // static __device__ void calc_force ( 
 //   double dist,
@@ -150,7 +150,7 @@ static __global__ void calc_efs(
             double f12x = 0;
             double f12y = 0;
             double f12z = 0;
-            // calc_energy(p_Basis, d12, r_cut, type1, type2, rad_coeffs, en);
+            calc_energy(p_Basis, d12, r_cut, type1, type2, rad_coeffs, en);
             // calc_force(p_Basis, x12, r_cut, type1, type2, rad_coeffs, f12x);
             // calc_force(p_Basis, x12, r_cut, type1, type2, rad_coeffs, f12y);
             // calc_force(p_Basis, x12, r_cut, type1, type2, rad_coeffs, f12z);

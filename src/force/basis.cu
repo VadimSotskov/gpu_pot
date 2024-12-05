@@ -16,7 +16,7 @@ AnyBasis::~AnyBasis() {
   delete[] ders;
 }
 
-void BasisChebyshev::Calc(double val) {
+__device__ void BasisChebyshev::Calc(double val) {
 
     double ksi = (2 * val - (min_val + max_val)) / (max_val - min_val);
 
@@ -28,7 +28,7 @@ void BasisChebyshev::Calc(double val) {
 
 }
 
-void BasisChebyshev::CalcDers(double val)
+__device__ void BasisChebyshev::CalcDers(double val)
 {
 
     BasisChebyshev::Calc(val);
