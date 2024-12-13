@@ -15,6 +15,33 @@ AnyBasis::~AnyBasis() {
   delete[] vals;
   delete[] ders;
 }
+AnyBasis::AnyBasis(std::string& filename) 
+
+{
+  std::ifstream ifs(filename);
+  std::string tmpstr;
+  std::getline(ifs, tmpstr);
+  ifs >> tmpstr;
+  if (tmpstring == "min_dist") {
+    ifs.ignore(3);
+    ifs >> min_dist;
+    ifs >> tmpstring;
+  }
+  if (tmpstring == "max_dist") {
+    ifs.ignore(3);
+    ifs >> max_dist;
+    ifs >> tmpstring;
+  }
+  if (tmpstring == "basis_size") {
+    ifs.ignore(3);
+    ifs >> basis_size;
+    ifs >> tmpstring;
+  }
+  if (tmpstring == "n_species") {
+    ifs.ignore(3);
+    ifs >> n_species;
+  }
+}
 
 __device__ void BasisChebyshev::Calc(double val) {
 

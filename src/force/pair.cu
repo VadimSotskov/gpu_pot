@@ -8,13 +8,34 @@
 PairPot::PairPot(FILE*, char*, int num_types, const int number_of_atoms, int basis_size, double min_val, double max_val, int n_species)
 
 {
-    r_cut = max_val;
-    p_Basis = new BasisChebyshev(basis_size, min_val, max_val, n_species);
     pp_data.NN.resize(number_of_atoms);
     pp_data.NL.resize(number_of_atoms * 400); // very safe for EAM
     pp_data.cell_count.resize(number_of_atoms);
     pp_data.cell_count_sum.resize(number_of_atoms);
     pp_data.cell_contents.resize(number_of_atoms);
+}
+
+PairPot::Load(std::string& filename) 
+
+{
+  std::ifstream ifs(filename);
+  std::string tmpstring;
+  ifs >> tmpstring;
+  if (tmpstring == "basis_type") {
+    ifs.ignore(3);
+    ifs >> tmpstring;
+    if (tmpstring == "Chebyshev")
+      p_Basis = new BasisChebyshev(ifs);
+      ifs >> tmpstring;
+  }
+  
+  for (int i = 0; i < 5; ++i) std::getline(ifs, tmpstring);
+  rad_coeffs.resize(p_Basis->size * 4);
+  for (int i = 0; i < rad_coeffs.size(); ++i) {
+      ifs >> rad_coeffs[i];
+  }
+    
+    
 }
 
 // static __device__ void calc_energy ( 

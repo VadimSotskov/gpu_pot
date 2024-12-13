@@ -18,6 +18,7 @@ public:
     std::vector<double> rad_coeffs;
     double r_cut = 0;
     PairPot(FILE*, char*, int num_types, const int number_of_atoms, int basis_size, double min_val, double max_val, int n_species);
+    void Load(std::string& filename);
     virtual ~PairPot(void) {};
     virtual void compute(
         Box& box,
