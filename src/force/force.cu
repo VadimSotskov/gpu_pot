@@ -26,6 +26,7 @@ The driver class calculating force and related quantities.
 #include "tersoff1989.cuh"
 #include "tersoff_mini.cuh"
 #include "ilp_tmd_sw.cuh"
+#include "pair.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -66,7 +67,7 @@ void Force::parse_potential(
   if (num_param != 2 && num_param != 3) {
     PRINT_INPUT_ERROR("potential should have 1 or 2 parameters.\n");
   }
-
+  std::cout<<"PARSE POT CALLED"<<std::endl;
   std::unique_ptr<Potential> potential;
   FILE* fid_potential = my_fopen(param[1], "r");
   char potential_name[100];
@@ -78,6 +79,8 @@ void Force::parse_potential(
   number_of_atoms_ = number_of_atoms;
   bool is_nep = false;
   // determine the potential
+  std::cout<<"CHOOSING POTENTIAL"<<std::endl;
+  std::cout<<potential_name<<std::endl;
   if (strcmp(potential_name, "tersoff_1989") == 0) {
     potential.reset(new Tersoff1989(fid_potential, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "tersoff_1988") == 0) {
@@ -88,7 +91,11 @@ void Force::parse_potential(
     potential.reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "eam_dai_2006") == 0) {
     potential.reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
-  } else if (strcmp(potential_name, "fcp") == 0) {
+  } else if (strcmp(potential_name, "pair") == 0) {
+    std::cout<<"HERE!"<<std::endl;
+    potential.reset(new PairPot(param[1], number_of_atoms));
+  }
+    else if (strcmp(potential_name, "fcp") == 0) {
     potential.reset(new FCP(fid_potential, num_types, number_of_atoms, box));
     is_fcp = true;
   } else if (
@@ -738,6 +745,7 @@ void Force::compute(
   GPU_Vector<double>& velocity_per_atom,
   GPU_Vector<double>& mass_per_atom)
 {
+  //std::cout<<"yet running1"<<std::endl;
   const int number_of_atoms = type.size();
   if (!is_fcp) {
     gpu_apply_pbc<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
@@ -747,7 +755,7 @@ void Force::compute(
       position_per_atom.data() + number_of_atoms,
       position_per_atom.data() + number_of_atoms * 2);
   }
-
+  //std::cout<<"yet running2"<<std::endl;
   initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms,
     force_per_atom.data(),
@@ -756,11 +764,14 @@ void Force::compute(
     potential_per_atom.data(),
     virial_per_atom.data());
   GPU_CHECK_KERNEL
+  //std::cout<<"yet running3"<<std::endl;
 
   temperature += delta_T;
   if (multiple_potentials_mode_.compare("observe") == 0) {
+    //std::cout<<"yet running4"<<std::endl;
     // If observing, calculate using main potential only
     if (3 == potentials[0]->nep_model_type) {
+      //std::cout<<"yet running5"<<std::endl;
       potentials[0]->compute(
         temperature,
         box,
@@ -770,18 +781,23 @@ void Force::compute(
         force_per_atom,
         virial_per_atom);
     } else if (1 == potentials[0]->ilp_flag) {
+      //std::cout<<"yet running6"<<std::endl;
       // compute the potential with ILP
       potentials[0]->compute_ilp(
         box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom, group);
     } else {
+      //std::cout<<"yet running7"<<std::endl;
       potentials[0]->compute(
         box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+      //std::cout<<"computed"<<std::endl;
     }
   } else if (multiple_potentials_mode_.compare("average") == 0) {
+    //std::cout<<"yet running8"<<std::endl;
     // Calculate average potential, force and virial per atom.
     for (int i = 0; i < potentials.size(); i++) {
       // potential->compute automatically adds the properties
       if (3 == potentials[i]->nep_model_type) {
+        //std::cout<<"yet running9"<<std::endl;
         potentials[i]->compute(
           temperature,
           box,
@@ -791,15 +807,18 @@ void Force::compute(
           force_per_atom,
           virial_per_atom);
       } else if (1 == potentials[i]->ilp_flag) {
+        //std::cout<<"yet running10"<<std::endl;
         // compute the potential with ILP
         potentials[i]->compute_ilp(
           box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom, group);
       } else {
+        //std::cout<<"yet running11"<<std::endl;
         potentials[i]->compute(
           box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
       }
     }
     // Compute average and copy properties back into original vectors.
+    std::cout<<"yet running12"<<std::endl;
     gpu_average_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms,
       potential_per_atom.data(),
@@ -810,6 +829,7 @@ void Force::compute(
   } else {
     PRINT_INPUT_ERROR("Invalid mode for multiple potentials.\n");
   }
+  std::cout<<"yet running13"<<std::endl;
 
   if (compute_hnemd_) {
     // the virial tensor:

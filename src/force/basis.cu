@@ -1,5 +1,6 @@
 #include "basis.cuh"
 #include <iostream>
+#include <fstream>
 
 
 AnyBasis::AnyBasis(int size_, double min_val_, double max_val_, int n_species_) : size(size_), min_val(min_val_), max_val(max_val_), 
@@ -15,29 +16,32 @@ AnyBasis::~AnyBasis() {
   delete[] vals;
   delete[] ders;
 }
-AnyBasis::AnyBasis(std::string& filename) 
+AnyBasis::AnyBasis(const std::string& filename) 
 
 {
+  std::cout<<"initializing anybasis"<<std::endl;
   std::ifstream ifs(filename);
   std::string tmpstr;
   std::getline(ifs, tmpstr);
+  std::getline(ifs, tmpstr);
   ifs >> tmpstr;
-  if (tmpstring == "min_dist") {
+  std::cout<<tmpstr<<std::endl;
+  if (tmpstr == "min_dist") {
     ifs.ignore(3);
-    ifs >> min_dist;
-    ifs >> tmpstring;
+    ifs >> min_val;
+    ifs >> tmpstr;
   }
-  if (tmpstring == "max_dist") {
+  if (tmpstr == "max_dist") {
     ifs.ignore(3);
-    ifs >> max_dist;
-    ifs >> tmpstring;
+    ifs >> max_val;
+    ifs >> tmpstr;
   }
-  if (tmpstring == "basis_size") {
+  if (tmpstr == "basis_size") {
     ifs.ignore(3);
-    ifs >> basis_size;
-    ifs >> tmpstring;
+    ifs >> size;
+    ifs >> tmpstr;
   }
-  if (tmpstring == "n_species") {
+  if (tmpstr == "n_species") {
     ifs.ignore(3);
     ifs >> n_species;
   }

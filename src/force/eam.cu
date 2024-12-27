@@ -24,6 +24,7 @@ The EAM potential. Currently two analytical versions:
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <cstring>
+#include <iostream>
 #define BLOCK_SIZE_FORCE 64
 
 EAM::EAM(FILE* fid, char* name, int num_types, const int number_of_atoms)
@@ -483,6 +484,7 @@ void EAM::compute(
 #ifdef USE_FIXED_NEIGHBOR
   if (num_calls++ == 0) {
 #endif
+    std::cout<<rc<<std::endl;
     find_neighbor(
       N1,
       N2,

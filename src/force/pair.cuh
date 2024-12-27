@@ -16,9 +16,10 @@ public:
     using Potential::compute;
     AnyBasis* p_Basis = nullptr;
     std::vector<double> rad_coeffs;
-    double r_cut = 0;
+    double rc = 0;
     PairPot(FILE*, char*, int num_types, const int number_of_atoms, int basis_size, double min_val, double max_val, int n_species);
-    void Load(std::string& filename);
+    PairPot(const std::string& filename, const int number_of_atoms);
+    void Load(const std::string& filename);
     virtual ~PairPot(void) {};
     virtual void compute(
         Box& box,
