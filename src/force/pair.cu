@@ -4,6 +4,7 @@
 #include "utilities/gpu_macro.cuh"
 #include <cstring>
 #include <iostream>
+#include <thrust/device_vector.h>
 #define BLOCK_SIZE_FORCE 64
 
 PairPot::PairPot(FILE*, char*, int num_types, const int number_of_atoms, int basis_size, double min_val, double max_val, int n_species)
@@ -109,8 +110,41 @@ void PairPot::Load(const std::string& filename)
 
 // }
 
+/*static __device__ void Calc(thrust::device_vector<double> vals, double val, double min_val, double max_val, double scaling, int size) 
+{
+
+    //thrust::device_vector<double> vals;
+    double ksi = (2 * val - (min_val + max_val)) / (max_val - min_val);
+
+    vals[0] = scaling * 1;
+    vals[1] = scaling * ksi;
+    for (int i = 2; i < size; i++) {
+        vals[i] = 2 * ksi * vals[i - 1] - vals[i - 2];
+    }
+
+}*/
+
+/*static __device__ void CalcDers(thrust::device_vector<double> vals, thrust::device_vector<double> ders, double val, double min_val, double max_val, double scaling, int size)
+{
+
+    //BasisChebyshev::Calc(val);
+
+    double mult = 2.0 / (max_val - min_val);
+    double ksi = (2 * val - (min_val + max_val)) / (max_val - min_val);
+
+    ders[0] = scaling * 0;
+    ders[1] = scaling * mult;
+    for (int i = 2; i < size; i++) {
+        ders[i] = 2 * (mult * vals[i - 1] + ksi * ders[i - 1]) - ders[i - 2];
+    } 
+}*/
+
 static __device__ void calc_energy (
-  AnyBasis* p_Basis, 
+  double min_val,
+  double max_val,
+  double scaling,
+  int size,
+  int n_species, 
   double dist,
   double rс, 
   int type1, 
@@ -119,10 +153,14 @@ static __device__ void calc_energy (
   double &en)
 
 {
-    p_Basis->Calc(dist);
-    for (int i = 0; i < p_Basis->size; ++i) {
-        int pair_idx = i + type2 * p_Basis->size + type1 * p_Basis->size * p_Basis->n_species;
-        en += 0.5 * rad_coeffs[pair_idx] * p_Basis->getVal(i) * pow((rс - dist), 2);
+    //thrust::device_vector<double> vals;
+    //thrust::device_vector<double> ders;
+    //Calc(vals, dist, min_val, max_val, scaling, size);
+    //CalcDers(vals, ders, dist, min_val, max_val, scaling, size);    
+    //p_Basis->Calc(dist);
+    for (int i = 0; i < size; ++i) {
+        int pair_idx = i + type2 * size + type1 * size * n_species;
+        //en += 0.5 * rad_coeffs[pair_idx] * vals[i] * pow((rс - dist), 2);
     }
 
 }
@@ -146,7 +184,11 @@ static __device__ void calc_energy (
 // }
 
 static __global__ void calc_efs(
-  AnyBasis* p_Basis,
+  double min_val,
+  double max_val,
+  double scaling,
+  int size,
+  int n_species,  
   double* rad_coeffs,
   double rс, 
   const int N,
@@ -193,7 +235,7 @@ static __global__ void calc_efs(
             double f12x = 0;
             double f12y = 0;
             double f12z = 0;
-            calc_energy(p_Basis, d12, rс, type1, type2, rad_coeffs, en);
+            calc_energy(min_val, max_val, scaling, size, n_species,  d12, rс, type1, type2, rad_coeffs, en);
             // calc_force(p_Basis, x12, r_cut, type1, type2, rad_coeffs, f12x);
             // calc_force(p_Basis, x12, r_cut, type1, type2, rad_coeffs, f12y);
             // calc_force(p_Basis, x12, r_cut, type1, type2, rad_coeffs, f12z);
@@ -250,24 +292,35 @@ void PairPot::compute(
   }
 #endif
     std::cout<<"neighbor found"<<std::endl;
-    AnyBasis* cp_Basis;
-    cudaMalloc((void **)&cp_Basis, sizeof(AnyBasis));
-    cudaMemcpy(cp_Basis, p_Basis, sizeof(AnyBasis), cudaMemcpyHostToDevice);
-    double* host_vals = new double[p_Basis->size];
-    double* host_ders = new double[p_Basis->size];
-    cudaMalloc((void **)&host_vals, sizeof(double)*p_Basis->size);
-    cudaMalloc((void **)&host_ders, sizeof(double)*p_Basis->size);
-    cudaMemcpy(host_vals, p_Basis->vals, sizeof(double)*p_Basis->size, cudaMemcpyHostToDevice);
-    cudaMemcpy(&(cp_Basis->vals), &host_vals, sizeof(double *), cudaMemcpyHostToDevice);
-    cudaMemcpy(host_ders, p_Basis->ders, sizeof(double)*p_Basis->size, cudaMemcpyHostToDevice);
-    std::cout<<"copied basis1"<<std::endl;
-    cudaMemcpy(&(cp_Basis->ders), &host_ders, sizeof(double *), cudaMemcpyHostToDevice);
+    //AnyBasis* cp_Basis;
+    //printf("%f\n", cp_Basis->max_val);
+    //cudaMalloc((void **)&cp_Basis, sizeof(AnyBasis));
+    //cudaMemcpy(cp_Basis, p_Basis, sizeof(AnyBasis), cudaMemcpyHostToDevice);
+    //printf("%f\n", cp_Basis->max_val);
+    //double* host_vals = new double[p_Basis->size];
+    //double* host_ders = new double[p_Basis->size];
+    //cudaMalloc((void **)&host_vals, sizeof(double)*p_Basis->size);
+    //cudaMalloc((void **)&host_ders, sizeof(double)*p_Basis->size);
+    //cudaMemcpy(host_vals, p_Basis->vals, sizeof(double)*p_Basis->size, cudaMemcpyHostToDevice);
+    //for(int i = 0; i < p_Basis->size; ++i) {
+    //    printf("%f\n",host_vals[i]);
+    //}
+    //std::cout<<"copied!"<<std::endl;
+    //cudaMemcpy(&(cp_Basis->vals), &host_vals, sizeof(double *), cudaMemcpyHostToDevice);
+    //std::cout<<"copied1!"<<std::endl;
+    //cudaMemcpy(host_ders, p_Basis->ders, sizeof(double)*p_Basis->size, cudaMemcpyHostToDevice);
+    //std::cout<<"copied basis1"<<std::endl;
+    //cudaMemcpy(&(cp_Basis->ders), &host_ders, sizeof(double *), cudaMemcpyHostToDevice);
     double* p_rad_coeffs = new double[rad_coeffs.size()];
     cudaMalloc((void **)&p_rad_coeffs, sizeof(double)*rad_coeffs.size());
     cudaMemcpy(p_rad_coeffs, rad_coeffs.data(), sizeof(double)*rad_coeffs.size(), cudaMemcpyHostToDevice);
     std::cout<<"copied to gpu"<<std::endl;
     calc_efs<<<grid_size, BLOCK_SIZE_FORCE>>>(
-      cp_Basis,
+      p_Basis->min_val,
+      p_Basis->max_val,
+      p_Basis->scaling,
+      p_Basis->size,
+      p_Basis->n_species,
       p_rad_coeffs,
       rc,
       number_of_atoms,

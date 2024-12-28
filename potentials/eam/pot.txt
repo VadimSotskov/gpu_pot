@@ -1,0 +1,13 @@
+pair 1 Cu
+basis_type = Chebyshev
+min_dist = 2.0
+max_dist = 2.0
+basis_size = 6
+n_species = 1
+radial_coeffs
+2.66
+-0.551
+0.132
+0.0515
+0.0754
+0.0546

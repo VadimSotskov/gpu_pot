@@ -1,21 +1,22 @@
 #include "basis.cuh"
 #include <iostream>
 #include <fstream>
+#include <thrust/device_vector.h>
 
 
 AnyBasis::AnyBasis(int size_, double min_val_, double max_val_, int n_species_) : size(size_), min_val(min_val_), max_val(max_val_), 
     n_species(n_species_) {
-        vals = new double[size];
-        ders = new double[size];
+        //vals = new double[size];
+        //ders = new double[size];
         std::cout << "AnyBasis initialized" << std::endl;
         //vals.resize(size);
         //ders.resize(size);
         
 }
-AnyBasis::~AnyBasis() {
+/*AnyBasis::~AnyBasis() {
   delete[] vals;
   delete[] ders;
-}
+}*/
 AnyBasis::AnyBasis(const std::string& filename) 
 
 {
@@ -47,8 +48,10 @@ AnyBasis::AnyBasis(const std::string& filename)
   }
 }
 
-__device__ void BasisChebyshev::Calc(double val) {
+/*__device__ void Calc(thrust::device_vector<double> vals, double val, double min_val, double max_val, double scaling, int size) 
+{
 
+    //thrust::device_vector<double> vals;
     double ksi = (2 * val - (min_val + max_val)) / (max_val - min_val);
 
     vals[0] = scaling * 1;
@@ -59,10 +62,10 @@ __device__ void BasisChebyshev::Calc(double val) {
 
 }
 
-__device__ void BasisChebyshev::CalcDers(double val)
+__device__ void CalcDers(thrust::device_vector<double> vals, thrust::device_vector<double> ders, double val, double min_val, double max_val, double scaling, int size)
 {
 
-    BasisChebyshev::Calc(val);
+    //BasisChebyshev::Calc(val);
 
     double mult = 2.0 / (max_val - min_val);
     double ksi = (2 * val - (min_val + max_val)) / (max_val - min_val);
@@ -71,5 +74,5 @@ __device__ void BasisChebyshev::CalcDers(double val)
     ders[1] = scaling * mult;
     for (int i = 2; i < size; i++) {
         ders[i] = 2 * (mult * vals[i - 1] + ksi * ders[i - 1]) - ders[i - 2];
-    }
-}
+    } 
+}*/

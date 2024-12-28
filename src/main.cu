@@ -1,7 +1,9 @@
 #include <iostream>
 #include <vector>
+#include <stdio.h>
 
 class CudaClass {
+public:
   int x = 4;
   double* v;
   CudaClass(int size) {
@@ -10,15 +12,15 @@ class CudaClass {
         v[i] = i;
   }
   ~CudaClass() {
-    delete v[];
+    delete[] v;
   }
 };
 
-  __device__ void func(CudaClass* c) {
-    std::cout<<"x: "<<c->x<<std::endl;
-    for(int i = 0; i < size; ++i)
-        std::cout<<c->v[i]<<std::endl;
-  }
+__global__ void func(CudaClass* c) {
+    printf("x: %d\n", c->x);
+    //for(int i = 0; i < size; ++i)
+        //std::cout<<c->v[i]<<std::endl;
+}
 
 
 int main() {
