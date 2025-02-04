@@ -484,7 +484,7 @@ void EAM::compute(
 #ifdef USE_FIXED_NEIGHBOR
   if (num_calls++ == 0) {
 #endif
-    std::cout<<rc<<std::endl;
+    //std::cout<<rc<<std::endl;
     find_neighbor(
       N1,
       N2,

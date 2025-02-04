@@ -1,7 +1,7 @@
 pair 2 Cu Pd
 basis_type = Chebyshev
-min_dist = 2.0
-max_dist = 2.0
+min_dist = 1.0
+max_dist = 3.5
 basis_size = 6
 n_species = 2
 radial_coeffs
@@ -28,3 +28,4 @@ radial_coeffs
 -0.017
 0.74
 -0.04
+0.018

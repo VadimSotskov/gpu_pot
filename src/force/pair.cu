@@ -34,8 +34,9 @@ void PairPot::Load(const std::string& filename)
   std::ifstream ifs(filename);
   std::string tmpstring;
   ifs >> tmpstring;
-  ifs.ignore(8);
+  ifs.ignore (6);
   ifs >> tmpstring;
+  std::cout<<"now string is"<<std::endl;
   std::cout<<tmpstring<<std::endl;
   if (tmpstring == "basis_type") {
     ifs.ignore(3);
@@ -51,7 +52,7 @@ void PairPot::Load(const std::string& filename)
   for (int i = 0; i < 5; ++i) std::getline(ifs, tmpstring);
   std::cout<<tmpstring<<std::endl;
   std::cout<<"Basis size is: "<<p_Basis->size<<std::endl;
-  rad_coeffs.resize(p_Basis->size * 4);
+  rad_coeffs.resize(p_Basis->size * pow(p_Basis->n_species, 2));
   for (int i = 0; i < rad_coeffs.size(); ++i) {
       ifs >> rad_coeffs[i];
   }
@@ -61,32 +62,38 @@ void PairPot::Load(const std::string& filename)
     
 }
 
-// static __device__ void calc_energy ( 
-//   double dist,
-//   double min_val,
-//   double max_val,
-//   int scaling, 
-//   int type1, 
-//   int type2,
-//   int basis_size,
-//   int n_species,
-//   double* rad_coeffs,
-//   double &en)
+static __device__ void calc_energy ( 
+    double dist,
+    double min_val,
+    double max_val,
+    int scaling, 
+    int type1, 
+    int type2,
+    int basis_size,
+    int n_species,
+    double* rad_coeffs,
+    double* vals,
+    double &en)
 
-// {
-//     double* vals[];
-//     double ksi = (2 * dist - (min_val + max_val)) / (max_val - min_val);
-//     vals[0] = scaling * 1;
-//     vals[1] = scaling * ksi;
-//     for (int i = 2; i < basis_size; i++) {
-//         vals[i] = 2 * ksi * vals[i - 1] - vals[i - 2];
-//     }
-//     for (int i = 0; i < basis_size; ++i) {
-//         int pair_idx = i + type2 * basis_size + type1 * basis_size * n_species;
-//         en += 0.5 * rad_coeffs[pair_idx] * vals[i] * pow((max_val - dist), 2);
-//     }
+{
+    //double vals = new double[basis_size];
+    double mult = 2.0 / (max_val - min_val);
+    double ksi = (2 * dist - (min_val + max_val)) / (max_val - min_val);
+    vals[0] = scaling * (1 * (dist - max_val) * (dist - max_val));
+    vals[1] = scaling * (ksi * (dist - max_val) * (dist - max_val));
+    for (int i = 2; i < basis_size; i++) {
+        vals[i] = 2 * ksi * vals[i - 1] - vals[i - 2];
+    }
+    //printf("DISTANCE: %f\n", ksi);
+    //for (int i = 0; i < basis_size; ++i) printf("%f\n", vals[i]);
+    for (int i = 0; i < basis_size; ++i) {
+        int pair_idx = i + type2 * basis_size + type1 * basis_size * n_species;
+        en += rad_coeffs[pair_idx] * vals[i];
+        //en += 0.5 * rad_coeffs[pair_idx] * vals[i] * pow((max_val - dist), 2);
+    }
+    //delete[] vals;
 
-// }
+}
 
 // static __device__ void calc_force ( 
 //   double dist,
@@ -139,7 +146,7 @@ void PairPot::Load(const std::string& filename)
     } 
 }*/
 
-static __device__ void calc_energy (
+/*static __device__ void calc_energy (
   double min_val,
   double max_val,
   double scaling,
@@ -163,25 +170,39 @@ static __device__ void calc_energy (
         //en += 0.5 * rad_coeffs[pair_idx] * vals[i] * pow((rс - dist), 2);
     }
 
+}*/
+
+static __device__ void calc_force ( 
+    double dist,
+    double min_val,
+    double max_val,
+    int scaling, 
+    int type1, 
+    int type2,
+    int basis_size,
+    int n_species,
+    double* rad_coeffs,
+    double* vals,
+    double* ders,
+    double &f)
+
+
+{
+    double mult = 2.0 / (max_val - min_val);
+    double ksi = (2 * dist - (min_val + max_val)) / (max_val - min_val);
+
+    ders[0] = scaling * 0;
+    ders[1] = scaling * mult;
+    for (int i = 2; i < basis_size; i++) {
+        ders[i] = 2 * (mult * vals[i - 1] + ksi * ders[i - 1]) - ders[i - 2];
+    } 
+
+    for (int i = 0; i < basis_size; ++i) {
+        int pair_idx = i + type2 * basis_size + type1 * basis_size * n_species;
+        f += 0.5 * rad_coeffs[pair_idx] * (ders[i]*pow((max_val - dist), 2) + vals[i] * (max_val*max_val -  2*max_val - 2*dist));
+    }
+
 }
-
-// static __device__ void calc_force ( 
-//   double dist,
-//   double r_cut, 
-//   int type1, 
-//   int type2,
-//   std::vector<double> rad_coeffs,
-//   double &f)
-
-// {
-//     p_Basis->CalcDers(dist);
-//     for (int i = 0; i < p_Basis->size; ++i) {
-//         int pair_idx = i + type2 * p_Basis->size + type1 * p_Basis->size * p_Basis->n_species;
-//         f += 0.5 * rad_coeffs[pair_idx] * (p_Basis->getDer(i)*pow((r_cut - dist), 2) + p_Basis->getVal(i) * (r_cut*r_cut - 
-//         2*r_cut - 2*dist));
-//     }
-
-// }
 
 static __global__ void calc_efs(
   double min_val,
@@ -190,6 +211,8 @@ static __global__ void calc_efs(
   int size,
   int n_species,  
   double* rad_coeffs,
+  double* vals,
+  double* ders,
   double rс, 
   const int N,
   const int N1,
@@ -208,6 +231,7 @@ static __global__ void calc_efs(
   double* g_pe)
 
 {
+    //for (int i = 0; i < 24; ++i) printf("%f\n", rad_coeffs[i]);
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; //particle index
     int type1 = g_type[n1];
 
@@ -223,6 +247,7 @@ static __global__ void calc_efs(
         double s_fx = 0;
         double s_fy = 0;
         double s_fz = 0;
+        printf("NN: %d\n", NN);
         for (int i1 = 0; i1 < NN; ++i1) {
             int n2 = g_NL[n1 + N * i1];
             int type2 = g_type[n2];
@@ -231,11 +256,18 @@ static __global__ void calc_efs(
             double z12 = g_z[n2] - z1;
             apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+            //printf("DISTANCE: %f\n", d12);
             double en = 0.0;
             double f12x = 0;
             double f12y = 0;
             double f12z = 0;
-            calc_energy(min_val, max_val, scaling, size, n_species,  d12, rс, type1, type2, rad_coeffs, en);
+            //printf("MIN VAL: %f\n", min_val);
+            //printf("MAX VAL: %f\n", max_val);
+            //printf("SCALING: %f\n", scaling);
+            calc_energy(d12, min_val, max_val, scaling, type1, type2, size, n_species, rad_coeffs, vals, en);
+            calc_force(d12, min_val, max_val, scaling, type1, type2, size, n_species, rad_coeffs, vals, ders, f12x);
+            calc_force(d12, min_val, max_val, scaling, type1, type2, size, n_species, rad_coeffs, vals, ders, f12y);
+            calc_force(d12, min_val, max_val, scaling, type1, type2, size, n_species, rad_coeffs, vals, ders, f12z);
             // calc_force(p_Basis, x12, r_cut, type1, type2, rad_coeffs, f12x);
             // calc_force(p_Basis, x12, r_cut, type1, type2, rad_coeffs, f12y);
             // calc_force(p_Basis, x12, r_cut, type1, type2, rad_coeffs, f12z);
@@ -251,6 +283,12 @@ static __global__ void calc_efs(
         g_fx[n1] = s_fx;
         g_fy[n1] = s_fy;
         g_fz[n1] = s_fz;
+        //printf("ENERGY: %f\n", en_sum);
+        //printf("FX: %f\n", s_fx);
+        //printf("FY: %f\n", s_fy);
+        //printf("FZ: %f\n", s_fz);
+
+
   }
 }
 
@@ -262,7 +300,7 @@ void PairPot::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
-    std::cout<<"in compute"<<std::endl;
+    //std::cout<<"in compute"<<std::endl;
     const int number_of_atoms = type.size();
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
@@ -272,10 +310,10 @@ void PairPot::compute(
 #ifdef USE_FIXED_NEIGHBOR
   if (num_calls++ == 0) {
 #endif
-    std::cout<<"finding neighbor"<<std::endl;
-    std::cout<<N1<<" "<<N2<<std::endl;
-    std::cout<<rc<<std::endl;
-    std::cout<<number_of_atoms<<std::endl;
+    //std::cout<<"finding neighbor"<<std::endl;
+    //std::cout<<N1<<" "<<N2<<std::endl;
+    //std::cout<<rc<<std::endl;
+    //std::cout<<number_of_atoms<<std::endl;
     find_neighbor(
         N1,
         N2,
@@ -291,7 +329,7 @@ void PairPot::compute(
 #ifdef USE_FIXED_NEIGHBOR
   }
 #endif
-    std::cout<<"neighbor found"<<std::endl;
+    //std::cout<<"neighbor found"<<std::endl;
     //AnyBasis* cp_Basis;
     //printf("%f\n", cp_Basis->max_val);
     //cudaMalloc((void **)&cp_Basis, sizeof(AnyBasis));
@@ -311,17 +349,29 @@ void PairPot::compute(
     //cudaMemcpy(host_ders, p_Basis->ders, sizeof(double)*p_Basis->size, cudaMemcpyHostToDevice);
     //std::cout<<"copied basis1"<<std::endl;
     //cudaMemcpy(&(cp_Basis->ders), &host_ders, sizeof(double *), cudaMemcpyHostToDevice);
-    double* p_rad_coeffs = new double[rad_coeffs.size()];
-    cudaMalloc((void **)&p_rad_coeffs, sizeof(double)*rad_coeffs.size());
-    cudaMemcpy(p_rad_coeffs, rad_coeffs.data(), sizeof(double)*rad_coeffs.size(), cudaMemcpyHostToDevice);
-    std::cout<<"copied to gpu"<<std::endl;
+    //double* p_rad_coeffs = new double[rad_coeffs.size()];
+    //std::cout<<"RAD COEFFS SIZE: "<<rad_coeffs.size()<<std::endl;
+    //for(int i = 0; i < rad_coeffs.size(); ++i) std::cout<<rad_coeffs[i]<<std::endl;
+    //cudaMalloc((void **)&p_rad_coeffs, sizeof(double)*rad_coeffs.size());
+    //cudaMemcpy(p_rad_coeffs, rad_coeffs.data(), sizeof(double)*rad_coeffs.size(), cudaMemcpyHostToDevice);
+    thrust::device_vector<double> c_coeffs(rad_coeffs.size());
+    thrust::device_vector<double> c_basis_vals(p_Basis->size);
+    thrust::device_vector<double> c_basis_ders(p_Basis->size);
+    for (int i = 0; i < rad_coeffs.size(); ++i)
+        c_coeffs[i] = rad_coeffs[i];
+    double* p_c_coeffs = thrust::raw_pointer_cast(c_coeffs.data());
+    double* p_c_basis_vals = thrust::raw_pointer_cast(c_basis_vals.data());
+    double* p_c_basis_ders = thrust::raw_pointer_cast(c_basis_ders.data());
+    //std::cout<<"copied to gpu"<<std::endl;
     calc_efs<<<grid_size, BLOCK_SIZE_FORCE>>>(
       p_Basis->min_val,
       p_Basis->max_val,
       p_Basis->scaling,
       p_Basis->size,
       p_Basis->n_species,
-      p_rad_coeffs,
+      p_c_coeffs,
+      p_c_basis_vals,
+      p_c_basis_ders,
       rc,
       number_of_atoms,
       N1,

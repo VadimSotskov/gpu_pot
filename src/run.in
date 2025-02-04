@@ -1,7 +1,7 @@
-potential   ../potentials/eam/pot1.txt
+potential   ../potentials/eam/pot.txt
 velocity    100
 
 ensemble    npt_ber 100 100 100 0 0 0 53.4059 53.4059 53.4059 2000
 time_step   1
-dump_thermo 10
-run         20000
+dump_thermo 1
+run         1

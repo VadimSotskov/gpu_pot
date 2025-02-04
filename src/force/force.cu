@@ -818,7 +818,7 @@ void Force::compute(
       }
     }
     // Compute average and copy properties back into original vectors.
-    std::cout<<"yet running12"<<std::endl;
+    //std::cout<<"yet running12"<<std::endl;
     gpu_average_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms,
       potential_per_atom.data(),
@@ -829,7 +829,7 @@ void Force::compute(
   } else {
     PRINT_INPUT_ERROR("Invalid mode for multiple potentials.\n");
   }
-  std::cout<<"yet running13"<<std::endl;
+  //std::cout<<"yet running13"<<std::endl;
 
   if (compute_hnemd_) {
     // the virial tensor:

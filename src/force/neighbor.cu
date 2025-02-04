@@ -319,10 +319,10 @@ void find_neighbor(
   int num_bins[3];
   box.get_num_bins(rc_cell_list, num_bins);
 
-  std::cout<<"finding cell list"<<std::endl;
+  //std::cout<<"finding cell list"<<std::endl;
   find_cell_list(
     rc_cell_list, num_bins, box, position_per_atom, cell_count, cell_count_sum, cell_contents);
-  std::cout<<"cell_list formed"<<std::endl;
+  //std::cout<<"cell_list formed"<<std::endl;
   gpu_find_neighbor_ON1<<<grid_size, block_size>>>(
     box,
     N,
@@ -342,7 +342,7 @@ void find_neighbor(
     num_bins[2],
     rc_inv_cell_list,
     rc * rc);
-  std::cout<<"neighbors found"<<std::endl;
+  //std::cout<<"neighbors found"<<std::endl;
   GPU_CHECK_KERNEL
 
   const int MN = NL.size() / NN.size();
